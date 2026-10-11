@@ -58,3 +58,28 @@ macOS 15 以降は初回起動時に「ローカルネットワーク」の許�
 - サービス種別・TXT レコード仕様は localnode#308 と揃える (`txtvers`, `scheme`, `path`, `name`, `auth`, `ver`, `host`)
 - URL は `scheme://host:port/path` で組み立てる。TXT に `host` があればそれを優先
 - Windows / Linux のファイアウォール (UDP 5353)、Linux は Avahi との共存
+
+## アイコン
+`assets/icon/icon.png` (1080x1080) から生成する。LocalNode のアイコン (黒地・白線の L—N) に、検索を表す虫眼鏡を組み合わせている。
+
+```sh
+dart run flutter_launcher_icons
+```
+Linux はウィンドウアイコンを別途設定していない。
+
+## CI / CD (GitHub Actions)
+iOS は Xcode Cloud で別途ビルド・配布するため、ここには含まない。
+
+| ワークフロー | トリガー | 内容 |
+|---|---|---|
+| `ci.yml` | PR / main への push | `flutter analyze` + `flutter test`、Android / Linux / Windows / macOS のビルド確認 |
+| `release.yml` | main への push / 手動実行 | Android (AAB・APK) / Windows / Linux (x64・arm64) / macOS (署名なし) をビルドし、GitHub Releases にドラフト作成。AAB は Google Play の internal トラックへアップロード |
+
+### 必要な Secrets
+| 名前 | 内容 |
+|---|---|
+| `ANDROID_KEYSTORE_CONTENT` | リリース用キーストア (base64) |
+| `ANDROID_KEYSTORE_PASSWORD` / `ANDROID_KEY_ALIAS` / `ANDROID_KEY_PASSWORD` | 署名情報 |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | Google Play API のサービスアカウント JSON |
+
+Google Play への初回アップロードの前に、Play Console でアプリ (`com.ictglab.lnlocate`) を作成しておく必要がある。
