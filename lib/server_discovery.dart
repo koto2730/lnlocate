@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bonsoir/bonsoir.dart';
 
 import 'localnode_server.dart';
+import 'server_registry.dart';
 
 /// Finds LocalNode servers on the LAN.
 abstract class ServerDiscovery {
@@ -27,7 +28,8 @@ class BonsoirServerDiscovery implements ServerDiscovery {
   final _serversController =
       StreamController<List<LocalNodeServer>>.broadcast();
   final _errorsController = StreamController<String>.broadcast();
-  final Map<String, LocalNodeServer> _found = {};
+  final ServerRegistry _registry = ServerRegistry();
+  Timer? _rescanTimer;
 
   BonsoirDiscovery? _discovery;
   StreamSubscription<BonsoirDiscoveryEvent>? _sub;
@@ -41,7 +43,7 @@ class BonsoirServerDiscovery implements ServerDiscovery {
   @override
   Future<void> start() async {
     await stop();
-    _found.clear();
+    _registry.clear();
     _emit();
 
     final discovery = BonsoirDiscovery(type: serviceType);
@@ -61,40 +63,50 @@ class BonsoirServerDiscovery implements ServerDiscovery {
   void _onEvent(BonsoirDiscovery discovery, BonsoirDiscoveryEvent event) {
     switch (event) {
       case BonsoirDiscoveryServiceFoundEvent():
-        _upsert(event.service);
+        _registry.found(_toServer(event.service));
+        _emit();
         // Addresses / TXT are only known after resolving.
         event.service.resolve(discovery.serviceResolver);
       case BonsoirDiscoveryServiceResolvedEvent():
-      case BonsoirDiscoveryServiceUpdatedEvent():
-        _upsert(event.service!);
-      case BonsoirDiscoveryServiceLostEvent():
-        _found.remove(event.service.name);
+        _registry.resolved(_toServer(event.service));
         _emit();
+      case BonsoirDiscoveryServiceUpdatedEvent():
+        _registry.resolved(_toServer(event.service));
+        _emit();
+      case BonsoirDiscoveryServiceLostEvent():
+        final ambiguous = _registry.lost(event.service.name);
+        _emit();
+        // Same name on several networks: we cannot tell which one left.
+        if (ambiguous) _scheduleRescan();
       default:
         break;
     }
   }
 
-  void _upsert(BonsoirService s) {
-    _found[s.name] = LocalNodeServer(
-      name: s.name,
-      port: s.port,
-      hostname: s.hostname,
-      addresses: s.hostAddresses,
-      attributes: s.attributes,
-    );
-    _emit();
+  LocalNodeServer _toServer(BonsoirService s) => LocalNodeServer(
+        name: s.name,
+        port: s.port,
+        hostname: s.hostname,
+        addresses: s.hostAddresses,
+        attributes: s.attributes,
+      );
+
+  void _scheduleRescan() {
+    _rescanTimer?.cancel();
+    _rescanTimer = Timer(const Duration(seconds: 1), () {
+      if (!_serversController.isClosed) start();
+    });
   }
 
   void _emit() {
     if (_serversController.isClosed) return;
-    final list = _found.values.toList()
-      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-    _serversController.add(List.unmodifiable(list));
+    _serversController.add(_registry.servers);
   }
 
   @override
   Future<void> stop() async {
+    _rescanTimer?.cancel();
+    _rescanTimer = null;
     await _sub?.cancel();
     _sub = null;
     final d = _discovery;
