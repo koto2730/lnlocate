@@ -39,6 +39,21 @@ flutter run -d macos     # android / ios / windows / linux も同様
 - iOS / macOS: `NSLocalNetworkUsageDescription`、`NSBonjourServices` に `_localnode._tcp`
 - macOS: `com.apple.security.network.client` entitlement
 
+## 動作
+1. 起動すると `_localnode._tcp` の検索を自動で開始する
+2. 見つかったサーバーを一覧表示する (1台でも自動では開かない)
+3. タップすると、既定のブラウザで `scheme://host:port/path` を開く
+   - ホストは TXT の `host` → IPv4 アドレス → mDNS ホスト名の順に採用
+4. 右上の更新ボタンで再検索
+
+## テスト
+```sh
+flutter test                         # ユニット / ウィジェットテスト
+# 実機の mDNS 検出 (LocalNode を --mdns で起動しておく)
+flutter test integration_test -d macos --dart-define=EXPECT_SERVER="Office LocalNode"
+```
+macOS 15 以降は初回起動時に「ローカルネットワーク」の許可ダイアログが出る。許可しないと何も検出されない。
+
 ## 検討事項
 - サービス種別・TXT レコード仕様は localnode#308 と揃える (`txtvers`, `scheme`, `path`, `name`, `auth`, `ver`, `host`)
 - URL は `scheme://host:port/path` で組み立てる。TXT に `host` があればそれを優先
