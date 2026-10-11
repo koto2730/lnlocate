@@ -68,18 +68,17 @@ dart run flutter_launcher_icons
 Linux はウィンドウアイコンを別途設定していない。
 
 ## CI / CD (GitHub Actions)
-iOS は Xcode Cloud で別途ビルド・配布するため、ここには含まない。
+iOS は Xcode Cloud で別途ビルドするため、ここには含まない。ストア (Google Play / App Store) へのアップロードは今は行わない。
 
 | ワークフロー | トリガー | 内容 |
 |---|---|---|
 | `ci.yml` | PR / main への push | `flutter analyze` + `flutter test`、Android / Linux / Windows / macOS のビルド確認 |
-| `release.yml` | main への push / 手動実行 | Android (AAB・APK) / Windows / Linux (x64・arm64) / macOS (署名なし) をビルドし、GitHub Releases にドラフト作成。AAB は Google Play の internal トラックへアップロード |
+| `release.yml` | main への push / 手動実行 | Android (APK) / Windows / Linux (x64・arm64) / macOS (署名なし) をビルドし、GitHub Releases にドラフト作成 |
 
 ### 必要な Secrets
 | 名前 | 内容 |
 |---|---|
 | `ANDROID_KEYSTORE_CONTENT` | リリース用キーストア (base64) |
 | `ANDROID_KEYSTORE_PASSWORD` / `ANDROID_KEY_ALIAS` / `ANDROID_KEY_PASSWORD` | 署名情報 |
-| `GOOGLE_SERVICE_ACCOUNT_JSON` | Google Play API のサービスアカウント JSON |
 
-Google Play への初回アップロードの前に、Play Console でアプリ (`com.ictglab.lnlocate`) を作成しておく必要がある。
+ストアへのアップロードを始める場合は、`release.yml` にアップロード用のジョブを追加する (Google Play は Play Console でのアプリ登録が先に必要)。
