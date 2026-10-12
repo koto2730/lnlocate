@@ -10,6 +10,7 @@ class LocalNodeServer {
     this.hostname,
     this.addresses = const [],
     this.attributes = const {},
+    this.resolveFailed = false,
   });
 
   /// DNS-SD instance name (what the user set as the server name).
@@ -24,6 +25,12 @@ class LocalNodeServer {
 
   /// TXT record key/values.
   final Map<String, String> attributes;
+
+  /// The server was found but resolving its address kept failing.
+  final bool resolveFailed;
+
+  /// Whether the address is known, i.e. [url] can be opened.
+  bool get isResolved => url != null;
 
   /// Stable key used to de-duplicate entries while browsing.
   String get id => name;
@@ -86,6 +93,7 @@ class LocalNodeServer {
     List<String>? addresses,
     int? port,
     Map<String, String>? attributes,
+    bool? resolveFailed,
   }) =>
       LocalNodeServer(
         name: name,
@@ -93,6 +101,7 @@ class LocalNodeServer {
         hostname: hostname ?? this.hostname,
         addresses: addresses ?? this.addresses,
         attributes: attributes ?? this.attributes,
+        resolveFailed: resolveFailed ?? this.resolveFailed,
       );
 
   static bool _isIpv4(String s) =>

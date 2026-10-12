@@ -17,6 +17,10 @@ class FakeDiscovery implements ServerDiscovery {
   Stream<String> get errors => _errors.stream;
   @override
   Future<void> start() async => startCount++;
+  final retried = <String>[];
+  @override
+  Future<void> retryResolve(LocalNodeServer server) async =>
+      retried.add(server.name);
   @override
   Future<void> stop() async {}
   @override
@@ -77,6 +81,26 @@ void main() {
     await tester.tap(find.byIcon(Icons.refresh).first);
     await tester.pump();
     expect(discovery.startCount, 2);
+  });
+
+  testWidgets('unresolved servers show a progress row and retry on tap',
+      (tester) async {
+    final discovery = FakeDiscovery();
+    await tester.pumpWidget(MaterialApp(
+      home: ServerListPage(discovery: discovery, openUrl: (_) async => true),
+    ));
+    discovery.emit(const [
+      LocalNodeServer(name: 'Slow', port: 8080),
+      LocalNodeServer(name: 'Broken', port: 8080, resolveFailed: true),
+    ]);
+    await tester.pump();
+
+    expect(find.text('アドレスを解決中…'), findsOneWidget);
+    expect(find.text('アドレスを解決できませんでした(タップで再試行)'), findsOneWidget);
+
+    await tester.tap(find.text('Broken'));
+    await tester.pump();
+    expect(discovery.retried, ['Broken']);
   });
 
   test('LNLocateApp builds with a discovery', () {

@@ -78,9 +78,8 @@ class _ServerListPageState extends State<ServerListPage> {
     final url = server.url;
     final messenger = ScaffoldMessenger.of(context);
     if (url == null) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('アドレスを解決中です。少し待ってからもう一度お試しください。')),
-      );
+      // Not resolved yet (or resolving failed): try again.
+      await widget.discovery.retryResolve(server);
       return;
     }
     final ok = await widget.openUrl(url);
@@ -131,6 +130,22 @@ class _ServerListPageState extends State<ServerListPage> {
             separatorBuilder: (context, index) => const Divider(height: 1),
             itemBuilder: (context, i) {
               final s = servers[i];
+              if (!s.isResolved) {
+                return ListTile(
+                  leading: s.resolveFailed
+                      ? const Icon(Icons.sync_problem_outlined)
+                      : const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                  title: Text(s.name),
+                  subtitle: Text(s.resolveFailed
+                      ? 'アドレスを解決できませんでした(タップで再試行)'
+                      : 'アドレスを解決中…'),
+                  onTap: () => _open(s),
+                );
+              }
               return ListTile(
                 leading: Icon(s.isHttps ? Icons.lock_outline : Icons.dns_outlined),
                 title: Text(s.name),
